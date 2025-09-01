@@ -91,4 +91,4 @@
 
 如遇任何问题或有改进建议，请提交issue或联系维护者。
 ## 鸣谢
-- LinuxMirrors](https://linuxmirrors.cn/)
+- [LinuxMirrors](https://linuxmirrors.cn/)

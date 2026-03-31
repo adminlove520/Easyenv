@@ -187,8 +187,14 @@ install_linux_python() {
     cd "${TEMP_DIR}/Python-${PYTHON_VERSION}"
     ./configure --prefix=/usr/local/python3 --enable-optimizations --with-lto --enable-shared || handle_error "Python配置失败" $?
     make -j $(nproc) && make install || handle_error "Python安装失败" $?
-    ln -sf /usr/local/python3/bin/python3 /usr/bin/python3
-    ln -sf /usr/local/python3/bin/pip3 /usr/bin/pip3
+    # 软链接处理 - 采用更安全的策略，不覆盖 /usr/bin/python3
+    ln -sf /usr/local/python3/bin/python3.13 /usr/local/bin/python3.13
+    ln -sf /usr/local/python3/bin/pip3.13 /usr/local/bin/pip3.13
+    
+    # 尝试建立 python3 指向，但仅在 /usr/local/bin 下 (通常优先级高且不破坏系统工具)
+    ln -sf /usr/local/python3/bin/python3.13 /usr/local/bin/python3
+    ln -sf /usr/local/python3/bin/pip3.13 /usr/local/bin/pip
+    
     echo "/usr/local/python3/lib" > /etc/ld.so.conf.d/python3.conf && ldconfig
     
     if [ "$USE_MIRROR" = true ]; then
@@ -198,7 +204,7 @@ install_linux_python() {
 index-url = ${PYPI_MIRROR}
 EOF
     fi
-    verify_install "Python" "python3" "python3 --version"
+    verify_install "Python" "python3.13" "python3.13 --version"
 }
 
 install_linux_docker() {

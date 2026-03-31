@@ -214,26 +214,33 @@ install_linux_docker() {
         yum install -y yum-utils
         [ "$USE_MIRROR" = true ] && yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
         yum install -y docker-ce docker-ce-cli containerd.io
-    elif [[ "$OS_TYPE" == "ubuntu" ]]; then
-        apt-get install -y ca-certificates curl gnupg lsb-release
-        mkdir -p /etc/apt/keyrings
-        local gpg_url="https://download.docker.com/linux/ubuntu/gpg"
-        local repo_url="https://download.docker.com/linux/ubuntu"
+    elif [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then
+        apt-get install -y ca-certificates curl gnupg
+        install -m 0755 -d /etc/apt/keyrings
+        local gpg_url="https://download.docker.com/linux/$OS_TYPE/gpg"
+        local repo_url="https://download.docker.com/linux/$OS_TYPE"
         if [ "$USE_MIRROR" = true ]; then
-            gpg_url="https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg"
-            repo_url="https://mirrors.aliyun.com/docker-ce/linux/ubuntu"
+            gpg_url="https://mirrors.aliyun.com/docker-ce/linux/$OS_TYPE/gpg"
+            repo_url="https://mirrors.aliyun.com/docker-ce/linux/$OS_TYPE"
         fi
-        curl -fsSL "$gpg_url" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] $repo_url $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-        apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io
+        curl -fsSL "$gpg_url" | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] $repo_url $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     fi
     if [ "$USE_MIRROR" = true ]; then
         mkdir -p /etc/docker
         echo "{ \"registry-mirrors\": [\"${DOCKER_MIRROR}\"] }" > /etc/docker/daemon.json
     fi
     systemctl daemon-reload && systemctl start docker && systemctl enable docker
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose && ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+    
+    # Docker Compose 兼容性处理
+    if command_exists docker && docker compose version &>/dev/null; then
+        ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose 2>/dev/null || \
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null
+    fi
 }
 
 install_linux_java() {
